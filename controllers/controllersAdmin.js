@@ -1,5 +1,5 @@
 import Jwt from "jsonwebtoken"
-import GenerarJWT from "../helpers/GenerarJWt.js"
+import generarJWT from "../helpers/generarJWT.js"
 import db_firebase from "../firebase/auth_firebase.js"
 import obtener_informacion, { ordenamientoRapido,ordenamiento } from "../helpers/obtener_data.js";
 
@@ -14,7 +14,7 @@ const autenticar = async (req, res) => {
     if (!habilitado.acceso) {
         return res.status(403).json({ msg: "No tienes acceso" })
     }
-    let token = GenerarJWT(id)
+    let token = generarJWT(id)
     const activo = true
     try {
         await db_firebase.collection("Users").doc(id).set({ token: token, activo: activo}, { merge: true });
