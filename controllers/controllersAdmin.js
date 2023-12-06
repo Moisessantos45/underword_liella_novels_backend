@@ -80,12 +80,13 @@ const addUser = async (req, res) => {
     const { email, password, tipo, id, foto_perfil, name_user } = req.body
     const token = ""
     const activo = false
-    const acceso = true
+    const acceso = true 
+    // console.log(req.body)
     try {
         const user = await db_firebase.collection("Users").doc(id).get()
         const data_user = user.data()
         if (data_user.tipo !== "administrador") return res.json({ msg: "No tienes permisos" })
-        const usuario = await User.collection("Users").add({
+        const usuario = await db_firebase.collection("Users").add({
             email, password, token, activo, tipo, foto_perfil, name_user, acceso
         })
         res.status(202).json({ msg: "registrado correctamente" })
