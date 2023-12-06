@@ -10,9 +10,9 @@ import routerCapitulos from "./routes/router_capitulos.js";
 
 const app= express()
 app.use(express.json())
-dotenv.config()
+// dotenv.config()
 
-const dominiosPermitidos = ["http://localhost:5173",process.env.FRONTEDN_URL]
+const dominiosPermitidos = [process.env.FRONTEDN_URL]
 const opciones = {
     origin: function (origin, callback) {
         if (dominiosPermitidos.indexOf(origin) !== -1) {
