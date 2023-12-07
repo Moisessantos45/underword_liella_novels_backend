@@ -63,7 +63,7 @@ const mostrarInfoNovela = async (req, res) => {
     const card_data = await db_firebase.collection('Volumenes').where("clave", "==", clave).get();
     const capi_data = await db_firebase.collection('Capitulos').where("clave", "==", clave).get();
     const info = obtener_informacion(data_novel)[0]
-    const card = obtener_informacion(card_data)
+    const card = obtener_informacion(card_data).reverse()
     const capi = obtener_informacion(capi_data)
     const generosSearch = info.generos.split(",")
     try {

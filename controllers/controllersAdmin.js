@@ -1,7 +1,7 @@
 import Jwt from "jsonwebtoken"
 import generarJWT from "../helpers/generarJWT.js"
 import db_firebase from "../firebase/auth_firebase.js"
-import obtener_informacion, { ordenamientoRapido,ordenamiento } from "../helpers/obtener_data.js";
+import obtener_informacion, { ordenamientoRapido, ordenamiento } from "../helpers/obtener_data.js";
 
 const autenticar = async (req, res) => {
     const { email, password } = req.body;
@@ -17,7 +17,7 @@ const autenticar = async (req, res) => {
     let token = generarJWT(id)
     const activo = true
     try {
-        await db_firebase.collection("Users").doc(id).set({ token: token, activo: activo}, { merge: true });
+        await db_firebase.collection("Users").doc(id).set({ token: token, activo: activo }, { merge: true });
         const user = await db_firebase.collection("Users").doc(id).get()
         const usuario_data = user.data();
         usuario_data.id = id;
@@ -37,7 +37,7 @@ const panel = async (req, res) => {
     try {
         // console.log(id)
         const user = await db_firebase.collection("Users").doc(id).get()
-        let usersRef =await db_firebase.collection('Users').get();
+        let usersRef = await db_firebase.collection('Users').get();
         const totalUsuarios = usersRef.docs.length;
         // console.log(totalUsuarios)
         let cardsRef = await db_firebase.collection('Volumenes').get()
@@ -53,7 +53,7 @@ const panel = async (req, res) => {
         const usuario_data = user.data();
         usuario_data.id = user.id;
         const { password, ...usuario } = usuario_data
-        res.json({ usuario, totalUsuarios, ultimosCapitulos, ultimasCards,visistas_actuales })
+        res.json({ usuario, totalUsuarios, ultimosCapitulos, ultimasCards, visistas_actuales })
     } catch (error) {
         res.status(404).json({ msg: "Ocurrio un error" })
     }
@@ -80,8 +80,9 @@ const addUser = async (req, res) => {
     const { email, password, tipo, id, foto_perfil, name_user } = req.body
     const token = ""
     const activo = false
-    const acceso = true 
-    // console.log(req.body)
+    const acceso = true
+    const verificar = await db_firebase.collection("Users").where("email", "==", email).get()
+    if (verificar.empty) return res.status(403).json({ msg: "El usuario ya existe" })
     try {
         const user = await db_firebase.collection("Users").doc(id).get()
         const data_user = user.data()

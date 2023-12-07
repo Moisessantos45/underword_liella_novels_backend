@@ -13,13 +13,18 @@ const obtenerCapituloNum = async (req, res) => {
     // console.log(clave, capitulo)
     let chapters = await db_firebase.collection('Capitulos').where("clave", "==", clave).get();
     const cont = chapters.docs.length
-    const novela = await db_firebase.collection('Capitulos').where("clave", "==", clave).where("capitulo", "==", Number(capitulo)).get();
-    const primer = novela.docs[0].data?.capitulo == 0
+    const capitulos = await db_firebase.collection('Capitulos').where("clave", "==", clave).where("capitulo", "==", capitulo).get();
     // console.log(primer)
     if (capitulo > cont) return res.json({ msg: "capitulo inexistente" })
-    const capitulos = await db_firebase.collection('Capitulos').where("clave", "==", clave).get();
-    const data = obtener_informacion(novela)[0]
-    res.status(202).json({ data, cont, primer })
+    try {
+        // const capitulos = await db_firebase.collection('Capitulos').where("clave", "==", clave).get();
+        const data = obtener_informacion(capitulos)[0]
+        // console.log(data)
+        res.status(202).json({ data, cont })
+    } catch (error) {
+        res.status(404).json({ msg: "No se encontro capitulo" })
+    }
+
 }
 
 export {

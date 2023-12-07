@@ -15,6 +15,8 @@ const agregarNovela = async (req, res) => {
     if (!titulo) {
         return res.status(403).json({ msg: "No se enviaron datos" })
     }
+    const verificar = await db_firebase.collection("Volumenes").where("titulo", "==", titulo).get()
+    if (verificar.empty) return res.status(403).json({ msg: "La novela ya existe" })
     let clave = `${titulo.split(" ")[0].toLowerCase()}_${titulo.split(" ")[1].toLowerCase()}_${titulo.split(" ")[2].toLowerCase()}`
     const createdAt = `${obtenerFecha}-${obtenerHora}`
     try {
