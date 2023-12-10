@@ -1,17 +1,6 @@
 import db_firebase from "../firebase/auth_firebase.js";
 import obtener_informacion from "../helpers/obtener_data.js";
 
-// const obtener_informacion = (data) => {
-//     const datos = []
-//     if (data.empty) return datos
-//     data.forEach(docs => {
-//         let docData = docs.data();
-//         docData.id = docs.id;
-//         datos.push(docData);
-//     });
-//     return datos
-// }
-
 const busqueda = async (generosArray, clave) => {
     let datos = [];
     let snapshot = await db_firebase.collection("Novelas").where('clave', '!=', clave).get()
@@ -68,7 +57,7 @@ const mostrarInfoNovela = async (req, res) => {
     const generosSearch = info.generos.split(",")
     try {
         const recomendaciones = await busqueda(generosSearch, clave)
-        res.json({ info, card, capi, recomendaciones })
+        res.status(202).json({ info, card, capi, recomendaciones })
     } catch (error) {
         res.status(404).json({ msg: "ocurrio un error" })
     }

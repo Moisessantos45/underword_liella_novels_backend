@@ -5,7 +5,7 @@ import obtener_informacion from "../helpers/obtener_data.js";
 const agregarCapitulos = async (req, res) => {
     const { nombre } = req.body
     const verificar = await db_firebase.collection("Capitulos").where("titulo", "==", nombre).get()
-    if (verificar.empty) return res.status(403).json({ msg: "El capitulo ya existe" })
+    if (!verificar.empty) return res.status(403).json({ msg: "El capitulo ya existe" })
     const data_chapters = await db_firebase.collection("Capitulos").add(req.body)
     const chapter = await db_firebase.collection("Capitulos").doc(data_chapters.id).get()
     const novelas = await db_firebase.collection("Novelas").get()
@@ -28,16 +28,20 @@ const agregarCapitulos = async (req, res) => {
 }
 
 const mostrarCapitulos = async (req, res) => {
-    const data_capitulos = await db_firebase.collection("Capitulos").get()
-    const capitulos = obtener_informacion(data_capitulos)
-    res.status(202).json(capitulos)
+    try {
+        const data_capitulos = await db_firebase.collection("Capitulos").get()
+        const capitulos = obtener_informacion(data_capitulos)
+        res.status(202).json(capitulos)
+    } catch (error) {
+        res.status(404).json({ msg: "ocurrio un error" })
+    }
 }
 
 const actulizarCapitulo = async (req, res) => {
     const { clave, capitulo } = req.body
     const capitulos_data = await db_firebase.collection("Capitulos").where("clave", "==", clave).where("capitulo", "==", capitulo).get()
     if (capitulos_data.empty) {
-        return res.status(403).json({ msg: "No se encontro capitulo" })
+        return res.status(403).json({ msg: "No se encontro el capitulo" })
     }
     const capitulos = capitulos_data.docs[0].data()
     const datos = req.body
@@ -51,7 +55,7 @@ const actulizarCapitulo = async (req, res) => {
         await db_firebase.collection("Capitulos").doc(capitulos_data.docs[0].id).update(capitulos)
         res.status(202).json(capitulos)
     } catch (error) {
-        res.status(404).json({ msg: "Ocurrio un error al actulizar" })
+        res.status(404).json({ msg: "Ocurrio un error al actualizar" })
     }
 }
 

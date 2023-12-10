@@ -6,7 +6,7 @@ const agregarCard = async (req, res) => {
     const { nombreClave, captiuloActive } = req.body
     // console.log(req.body)
     const verificar = await db_firebase.collection("Volumenes").where("nombreClave", "==", nombreClave).get()
-    if (verificar.empty) return res.status(403).json({ msg: "El volumen ya existe" })
+    if (!verificar.empty) return res.status(403).json({ msg: "El volumen ya existe" })
     const card_data = await db_firebase.collection("Volumenes").add(req.body)
     const cards = await db_firebase.collection('Volumenes').doc(card_data.id).get()
     const data_novel = await db_firebase.collection("Novelas").get();
@@ -35,9 +35,13 @@ const agregarCard = async (req, res) => {
 }
 
 const obtenerCards = async (req, res) => {
-    const cards_data = await db_firebase.collection("Volumenes").get();
-    const cards = obtener_informacion(cards_data)
-    res.status(202).json(cards)
+    try {
+        const cards_data = await db_firebase.collection("Volumenes").get();
+        const cards = obtener_informacion(cards_data)
+        res.status(202).json(cards)
+    } catch (error) {
+        res.status(404).json({ msg: "ocurrio un error" })
+    }
 }
 
 const actulizarCard = async (req, res) => {
