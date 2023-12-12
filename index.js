@@ -9,7 +9,7 @@ import routerCapitulos from "./routes/router_capitulos.js";
 
 const app = express()
 app.use(express.json())
-// dotenv.config()
+dotenv.config()
 
 const dominiosPermitidos = [process.env.FRONTEDN_URL]
 const opciones = {
