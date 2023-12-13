@@ -3,8 +3,9 @@ import { obtenerFecha, obtenerHora } from "../helpers/Fecha.js";
 import obtener_informacion from "../helpers/obtener_data.js";
 
 const agregarCapitulos = async (req, res) => {
-    const { nombre } = req.body
-    const verificar = await db_firebase.collection("Capitulos").where("titulo", "==", nombre).where("capitulo", "==", String(capitulo)).get()
+    const { titulo, capitulo, nombre } = req.body
+    // console.log(req.body)
+    const verificar = await db_firebase.collection("Capitulos").where("titulo", "==", titulo).where("capitulo", "==", capitulo).get()
     if (!verificar.empty) return res.status(403).json({ msg: "El capitulo ya existe" })
     const data_chapters = await db_firebase.collection("Capitulos").add(req.body)
     const chapter = await db_firebase.collection("Capitulos").doc(data_chapters.id).get()
