@@ -18,7 +18,7 @@ const obtenerCapituloNum = async (req, res) => {
     try {
         let chapters = await db_firebase.collection('Capitulos').where("clave", "==", clave).get();
         const cont = chapters.docs.length
-        const capitulos = await db_firebase.collection('Capitulos').where("clave", "==", clave).where("capitulo", "==", capitulo).get();
+        const capitulos = await db_firebase.collection('Capitulos').where("clave", "==", clave).where("capitulo", "==",Number(capitulo)).get();
         if (capitulo > cont) return res.status(404).json({ msg: "capitulo inexistente" })
         const data = obtener_informacion(capitulos)[0]
         res.status(202).json({ data, cont })

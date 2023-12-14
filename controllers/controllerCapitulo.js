@@ -41,7 +41,7 @@ const mostrarCapitulos = async (req, res) => {
 
 const actulizarCapitulo = async (req, res) => {
     const { clave, capitulo } = req.body
-    const capitulos_data = await db_firebase.collection("Capitulos").where("clave", "==", clave).where("capitulo", "==", capitulo).get()
+    const capitulos_data = await db_firebase.collection("Capitulos").where("clave", "==", clave).where("capitulo", "==", Number(capitulo)).get()
     if (capitulos_data.empty) {
         return res.status(403).json({ msg: "No se encontro el capitulo" })
     }
