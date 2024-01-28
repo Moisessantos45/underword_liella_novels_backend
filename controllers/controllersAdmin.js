@@ -116,9 +116,9 @@ const addUser = async (req, res) => {
     const user = await db_firebase.collection("Users").doc(id).get();
     const data_user = user.data();
     if (data_user.tipo !== "administrador")
-      return res.json({ msg: "No tienes permisos" });
+      return res.status(403).json({ msg: "No tienes permisos" });
     const salt = await funcionesBcrypt.encryptar(password);
-    const usuario = await db_firebase.collection("Users").add({
+    await db_firebase.collection("Users").add({
       email,
       password: salt,
       token,
@@ -154,7 +154,6 @@ const restablecerPassword = async (req, res) => {
       .collection("Users")
       .doc(id)
       .set({ token: "", acceso: true, activo: activo }, { merge: true });
-    console.log(respuesta);
     res.status(202).json({ msg: "actualizacion exitosa" });
   } catch (error) {
     res.status(403).json({ msg: "ocurrio un error" });
@@ -162,16 +161,12 @@ const restablecerPassword = async (req, res) => {
 };
 
 const actulizarPassword = async (req, res) => {
-  const { email, password, foto_perfil, name_user, tipo } = req.body;
+  const { email, password, foto_perfil, name_user, tipo, id } = req.body;
   // console.log(req.body)
-  const datos = await db_firebase
-    .collection("Users")
-    .where("email", "==", email)
-    .get();
-  if (datos.empty) {
+  const datos = await db_firebase.collection("Users").doc(id).get();
+  if (!datos.exists) {
     return res.status(403).json({ msg: "usuario no encontrado" });
   }
-  const id = datos.docs[0].id;
   let datos_actuales = {};
   if (password.trim() === "")
     return res.status(404).json({ msg: "Password vacio" });
@@ -244,7 +239,7 @@ const eliminarUsuario = async (req, res) => {
   const { id } = req.params;
   try {
     await db_firebase.collection("Users").doc(id).delete();
-    envioNotificaciones({id:id}, "delete", null);
+    envioNotificaciones({ id: id }, "delete", null);
     res.json({ msg: "se elimino correctamente" });
   } catch (error) {
     res.status(404).json({ msg: "ocurio un error al eliminar" });

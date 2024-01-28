@@ -54,16 +54,13 @@ const obtenerNovelas = async (req, res) => {
 };
 
 const actulizarNovela = async (req, res) => {
-  const { clave } = req.body;
-  const data_novel = await db_firebase
-    .collection("Novelas")
-    .where("clave", "==", clave)
-    .get();
-  if (data_novel.empty) {
+  const { id } = req.body;
+  const data_novel = await db_firebase.collection("Novelas").doc(id).get();
+  if (!data_novel.exists) {
     return res.status(404).json({ msg: "La novela no existe" });
   }
   let novela = data_novel.docs[0].data();
-  const datos = req.body;
+  const {id:idReq,...datos} = req.body;
   for (let prop in datos) {
     if (datos[prop]) {
       novela[prop] = datos[prop];

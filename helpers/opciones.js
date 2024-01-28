@@ -15,7 +15,7 @@ const cuerpoHmtl = (data, type) => {
       <p>Password: ${data.password}</p>
       `,
     updatePassword: `
-      <h1>Datos del usuario actulizados</h1>
+      <h1>Datos del usuario actualizado</h1>
       <h3>Nombre: ${data.name_user}</h3>
       <p>Tipo de usuario: ${data.tipo}</p>
       <p>Email: ${data.email}</p>
@@ -38,7 +38,7 @@ const cuerpoHmtl = (data, type) => {
     <p>Encargados: ${data.encargados}</p>
     `,
     updateNovel: `
-    <h1>Datos de la novela actulizada</h1>
+    <h1>Datos de la novela actualizada</h1>
     <h3>Nombre: ${data.titulo}</h3>
     <p>Volumen: ${data.tipo}</p>
     `,
@@ -47,7 +47,7 @@ const cuerpoHmtl = (data, type) => {
     <h3>Id: ${data.id}</h3>
     `,
     inahilitarNovel: `
-    <h1>Datos de la novela actulizada</h1>
+    <h1>Datos de la novela actualizada</h1>
     <h3>Nombre: ${data.titulo}</h3>
     <p>Volumen: ${data.tipo}</p>
     `,
@@ -61,7 +61,7 @@ const cuerpoHmtl = (data, type) => {
     <p>Link de MediafireEpub: ${data.mediafireEpub || ""}</p>
     `,
     updateCard: `
-    <h1>Datos del volumen actulizado</h1>
+    <h1>Datos del volumen actualizado</h1>
     <h3>Nombre: ${data.clave}</h3>
     <p>Volumen: ${data.volumen}</p>
     <p>Link de Mediafire: ${data.mediafire || ""}</p>
@@ -80,7 +80,7 @@ const cuerpoHmtl = (data, type) => {
     <p>Capitulo: ${data.capitulo}</p>
     `,
     updateChapter: `
-    <h1>Datos del capitulo actulizado</h1>
+    <h1>Datos del capitulo actualizado</h1>
     <h3>Nombre: ${data.nombre}</h3>
     <h3>Titulo del capitulo: ${data.titulo}</h3>
     <p>Capitulo: ${data.capitulo}</p>

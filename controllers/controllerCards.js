@@ -60,18 +60,14 @@ const obtenerCards = async (req, res) => {
 };
 
 const actulizarCard = async (req, res) => {
-  const { clave, volumen } = req.body;
+  const { id } = req.body;
   // console.log(clave, volumen)
-  const cards = await db_firebase
-    .collection("Volumenes")
-    .where("clave", "==", clave)
-    .where("volumen", "==", volumen)
-    .get();
-  if (cards.empty) {
+  const cards = await db_firebase.collection("Volumenes").doc(id).get();
+  if (!cards.exists) {
     return res.status(404).json({ msg: "Volumen no encontrado" });
   }
-  const card = cards.docs[0].data();
-  const datos = req.body;
+  const card = cards.data();
+  const {id:idReq,...datos} = req.body;
   for (let prop in datos) {
     if (datos[prop]) {
       card[prop] = datos[prop];
@@ -80,7 +76,7 @@ const actulizarCard = async (req, res) => {
   try {
     await db_firebase
       .collection("Volumenes")
-      .doc(cards.docs[0].id)
+      .doc(cards.id)
       .update(card);
     envioNotificaciones(card, "updateCard", null);
     res.status(202).json(card);

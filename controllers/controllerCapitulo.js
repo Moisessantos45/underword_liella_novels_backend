@@ -8,7 +8,7 @@ const agregarCapitulos = async (req, res) => {
   const verificar = await db_firebase
     .collection("Capitulos")
     .where("titulo", "==", titulo)
-    .where("capitulo", "==", capitulo)
+    .where("capitulo", "==", +capitulo)
     .get();
   if (!verificar.empty)
     return res.status(403).json({ msg: "El capitulo ya existe" });
@@ -56,27 +56,29 @@ const mostrarCapitulos = async (req, res) => {
 };
 
 const actulizarCapitulo = async (req, res) => {
-  const { clave, capitulo } = req.body;
+  const { id } = req.body;
   const capitulos_data = await db_firebase
     .collection("Capitulos")
-    .where("clave", "==", clave)
-    .where("capitulo", "==", Number(capitulo))
+    .doc(id)
     .get();
-  if (capitulos_data.empty) {
+  if (!capitulos_data.exists) {
     return res.status(403).json({ msg: "No se encontro el capitulo" });
   }
-  const capitulos = capitulos_data.docs[0].data();
-  const datos = req.body;
+  const capitulos = capitulos_data.data();
+  const { id: idReq, ...datos } = req.body;
   for (let prop in datos) {
     if (datos[prop]) {
-      capitulos[prop] = datos[prop];
+      if (prop === "capitulo") {
+        capitulos[prop] = Number(datos[prop]);
+      } else {
+        capitulos[prop] = datos[prop];
+      }
     }
   }
-
   try {
     await db_firebase
       .collection("Capitulos")
-      .doc(capitulos_data.docs[0].id)
+      .doc(capitulos_data.id)
       .update(capitulos);
     envioNotificaciones(capitulos, "updateChapter", null);
     res.status(202).json(capitulos);
