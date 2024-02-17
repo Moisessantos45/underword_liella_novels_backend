@@ -5,13 +5,12 @@ import envioNotificaciones from "../helpers/notificacionesResend.js";
 
 const agregarCapitulos = async (req, res) => {
   const { titulo, capitulo, nombre } = req.body;
-  const verificar = await db_firebase
+  const { empty } = await db_firebase
     .collection("Capitulos")
     .where("titulo", "==", titulo)
     .where("capitulo", "==", +capitulo)
     .get();
-  if (!verificar.empty)
-    return res.status(403).json({ msg: "El capitulo ya existe" });
+  if (!empty) return res.status(403).json({ msg: "El capitulo ya existe" });
   const { capitulo: _, ...data } = req.body;
   data.capitulo = Number(capitulo);
   const data_chapters = await db_firebase.collection("Capitulos").add(data);
@@ -31,13 +30,10 @@ const agregarCapitulos = async (req, res) => {
       {
         id: data_chapters.id,
         createdAt: createdAt,
+        clave: capituloSave.clave,
       },
       { merge: true }
     );
-    await db_firebase
-      .collection("Capitulos")
-      .doc(chapter.id)
-      .update({ clave: capituloSave.clave });
     envioNotificaciones(capituloSave, "addChapter", null);
     res.status(202).json(capituloSave);
   } catch (error) {
@@ -47,8 +43,8 @@ const agregarCapitulos = async (req, res) => {
 
 const mostrarCapitulos = async (req, res) => {
   try {
-    const data_capitulos = await db_firebase.collection("Capitulos").get();
-    const capitulos = obtener_informacion(data_capitulos);
+    const { docs } = await db_firebase.collection("Capitulos").get();
+    const capitulos = docs.map((item) => ({ ...item.data(), id: item.id }));
     res.status(202).json(capitulos);
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error" });
@@ -57,17 +53,14 @@ const mostrarCapitulos = async (req, res) => {
 
 const actulizarCapitulo = async (req, res) => {
   const { id } = req.body;
-  const capitulos_data = await db_firebase
-    .collection("Capitulos")
-    .doc(id)
-    .get();
-  if (!capitulos_data.exists) {
+  const dataChapter = await db_firebase.collection("Capitulos").doc(id).get();
+  if (!dataChapter.exists) {
     return res.status(403).json({ msg: "No se encontro el capitulo" });
   }
-  const capitulos = capitulos_data.data();
+  const capitulos = dataChapter.data();
   const { id: idReq, ...datos } = req.body;
   for (let prop in datos) {
-    if (datos[prop]) {
+    if (capitulos[prop] !== datos[prop]) {
       if (prop === "capitulo") {
         capitulos[prop] = Number(datos[prop]);
       } else {

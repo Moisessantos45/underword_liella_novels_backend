@@ -1,9 +1,12 @@
 import { Storage } from "megajs";
 import fs from "fs";
 import path from "path";
- 
-const email = "moy_45hdz@outlook.com";
-const password = "Moi15se4$1";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const email = process.env.EMAIL_MEGA;
+const password = process.env.PASSWORD_MEGA;
 
 const directorio = "./Uploads";
 const eliminarFiles = (res) => {

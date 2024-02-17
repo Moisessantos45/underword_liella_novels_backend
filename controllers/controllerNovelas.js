@@ -1,6 +1,5 @@
 import db_firebase from "../firebase/auth_firebase.js";
 import { obtenerFecha, obtenerHora } from "../helpers/Fecha.js";
-import obtener_informacion from "../helpers/obtener_data.js";
 import envioNotificaciones from "../helpers/notificacionesResend.js";
 
 const obtener_data_doc = async (id) => {
@@ -16,26 +15,25 @@ const agregarNovela = async (req, res) => {
   if (!titulo) {
     return res.status(403).json({ msg: "No se enviaron datos" });
   }
-  const verificar = await db_firebase
+  const { empty } = await db_firebase
     .collection("Volumenes")
     .where("titulo", "==", titulo)
     .get();
-  if (!verificar.empty)
-    return res.status(403).json({ msg: "La novela ya existe" });
+  if (!empty) return res.status(403).json({ msg: "La novela ya existe" });
   let clave = titulo.split(" ").slice(0, 3).join("_").toLowerCase();
   const createdAt = `${obtenerFecha()}-${obtenerHora()}`;
   try {
-    const novelas_data = await db_firebase
+    const { id } = await db_firebase
       .collection("Novelas")
       .add({ ...req.body, clave: clave });
-    await db_firebase.collection("Novelas").doc(novelas_data.id).set(
+    await db_firebase.collection("Novelas").doc(id).set(
       {
-        id: novelas_data.id,
+        id: id,
         createdAt: createdAt,
       },
       { merge: true }
     );
-    const novelaSave = await obtener_data_doc(novelas_data.id);
+    const novelaSave = await obtener_data_doc(id);
     envioNotificaciones(novelaSave, "addNovel", null);
     res.status(202).json(novelaSave);
   } catch (error) {
@@ -45,8 +43,8 @@ const agregarNovela = async (req, res) => {
 
 const obtenerNovelas = async (req, res) => {
   try {
-    const ilusNovelas = await db_firebase.collection("Novelas").get();
-    const novelas = obtener_informacion(ilusNovelas);
+    const { docs } = await db_firebase.collection("Novelas").get();
+    const novelas = docs.map((item) => ({ ...item.data(), id: item.id }));
     res.status(202).json(novelas);
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error en la consulta" });
@@ -55,22 +53,19 @@ const obtenerNovelas = async (req, res) => {
 
 const actulizarNovela = async (req, res) => {
   const { id } = req.body;
-  const data_novel = await db_firebase.collection("Novelas").doc(id).get();
-  if (!data_novel.exists) {
+  const dataNovel = await db_firebase.collection("Novelas").doc(id).get();
+  if (!dataNovel.exists) {
     return res.status(404).json({ msg: "La novela no existe" });
   }
-  let novela = data_novel.docs[0].data();
-  const {id:idReq,...datos} = req.body;
+  let novela = dataNovel.data();
+  const { id: idReq, ...datos } = req.body;
   for (let prop in datos) {
-    if (datos[prop]) {
+    if (novela[prop] !== datos[prop]) {
       novela[prop] = datos[prop];
     }
   }
   try {
-    await db_firebase
-      .collection("Novelas")
-      .doc(data_novel.docs[0].id)
-      .update(novela);
+    await db_firebase.collection("Novelas").doc(dataNovel.id).update(novela);
     envioNotificaciones(novela, "updateNovel", null);
     res.status(202).json(novela);
   } catch (error) {
@@ -91,11 +86,11 @@ const eliminarNovela = async (req, res) => {
 
 const inabilitarNovela = async (req, res) => {
   const { clave, active } = req.body;
-  const data_novel = await db_firebase
+  const { docs } = await db_firebase
     .collection("Novelas")
     .where("clave", "==", clave)
     .get();
-  const novela = obtener_informacion(data_novel);
+  const novela = docs.map((item) => ({ ...item.data(), id: item.id }));
   if (novela.length < 0) {
     return res.status(403).json({ msg: "no se encontro la novela" });
   }

@@ -1,5 +1,8 @@
 import SibApiV3Sdk from "@getbrevo/brevo";
 import cuerpoHmtl from "./opciones.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const types = {
   auth: "Inicio de sesion",
@@ -28,7 +31,7 @@ const envioNotificaciones = async (content, type, emaill) => {
     name: `Cuenta ${emaill}`,
   };
   try {
-    const recivers = [{ email: "luiscorveraballardo@gmail.com", name: emaill }];
+    const recivers = [{ email: process.env.EMAIL_PRIVATE, name: emaill }];
     await apiInstance.sendTransacEmail({
       sender,
       to: recivers,

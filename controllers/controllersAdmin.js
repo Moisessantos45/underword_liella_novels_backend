@@ -8,23 +8,32 @@ import envioNotificaciones from "../helpers/notificacionesResend.js";
 // el empty de la consulta de firebase regresa true si no encontro doc
 //regresa false si la consulta fue exito es decir encontro el doc
 
+const actualizacionDatos = async (datos, card) => {
+  for (let prop in datos) {
+    if (card[prop] !== datos[prop]) {
+      card[prop] = datos[prop];
+    }
+  }
+  return card;
+};
+
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
-  const datos = await db_firebase
+  const { docs, empty } = await db_firebase
     .collection("Users")
     .where("email", "==", email)
     .get();
-  if (datos.empty) {
+  if (empty) {
     return res.status(404).json({ msg: "usuario no encontrado" });
   }
   const verifyHasPassword = await funcionesBcrypt.verificarPassword(
     password,
-    datos.docs[0].data().password
+    docs[0].data().password
   );
   if (!verifyHasPassword)
     return res.status(403).json({ msg: "Password incorrecto" });
-  const id = datos.docs[0].id;
-  const habilitado = datos.docs[0].data();
+  const id = docs[0].id;
+  const habilitado = docs[0].data();
   if (!habilitado.acceso) {
     return res.status(403).json({ msg: "No tienes acceso" });
   }
@@ -35,8 +44,7 @@ const autenticar = async (req, res) => {
       .collection("Users")
       .doc(id)
       .set({ token: token, activo: activo }, { merge: true });
-    const user = await db_firebase.collection("Users").doc(id).get();
-    const usuario_data = user.data();
+    const usuario_data = docs[0].data();
     usuario_data.id = id;
     const { password, ...usuario } = usuario_data;
     envioNotificaciones(usuario, "auth", email);
@@ -61,11 +69,11 @@ const panel = async (req, res) => {
     const totalUsuarios = usersRef.docs.length;
     let cardsRef = await db_firebase.collection("Volumenes").get();
     let chapterRef = await db_firebase.collection("Capitulos").get();
-    const visitas = await db_firebase
+    const dataVisitas = await db_firebase
       .collection("Visitas")
       .doc("oc37sCt6ELD0UOl07X5T")
       .get();
-    let visistas_actuales = visitas.data().visistas;
+    let visistas_actuales = dataVisitas.data().visistas;
     const ultimasCard = obtener_informacion(cardsRef);
     const ultimosCapitulo = obtener_informacion(chapterRef);
     let ultimasCards = ordenamiento(ultimasCard);
@@ -87,8 +95,8 @@ const panel = async (req, res) => {
 
 const solicitar_users = async (req, res) => {
   try {
-    const users_data = await db_firebase.collection("Users").get();
-    const users = obtener_informacion(users_data);
+    const { docs } = await db_firebase.collection("Users").get();
+    const users = docs.map((item) => ({ ...item.data(), id: item.id }));
     res.status(202).json(users);
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error" });
@@ -106,15 +114,14 @@ const addUser = async (req, res) => {
   const token = "";
   const activo = false;
   const acceso = true;
-  const verificar = await db_firebase
+  const { empty } = await db_firebase
     .collection("Users")
     .where("email", "==", email)
     .get();
-  if (!verificar.empty)
-    return res.status(403).json({ msg: "El usuario ya existe" });
+  if (!empty) return res.status(403).json({ msg: "El usuario ya existe" });
   try {
-    const user = await db_firebase.collection("Users").doc(id).get();
-    const data_user = user.data();
+    const datUser = await db_firebase.collection("Users").doc(id).get();
+    const data_user = datUser.data();
     if (data_user.tipo !== "administrador")
       return res.status(403).json({ msg: "No tienes permisos" });
     const salt = await funcionesBcrypt.encryptar(password);
@@ -160,33 +167,24 @@ const restablecerPassword = async (req, res) => {
   }
 };
 
-const actulizarPassword = async (req, res) => {
-  const { email, password, foto_perfil, name_user, tipo, id } = req.body;
+const actulizarDatos = async (req, res) => {
+  const { email, password, id } = req.body;
   // console.log(req.body)
-  const datos = await db_firebase.collection("Users").doc(id).get();
-  if (!datos.exists) {
+  const datUser = await db_firebase.collection("Users").doc(id).get();
+  if (!datUser.exists) {
     return res.status(403).json({ msg: "usuario no encontrado" });
   }
-  let datos_actuales = {};
-  if (password.trim() === "")
-    return res.status(404).json({ msg: "Password vacio" });
-  const salt = await funcionesBcrypt.encryptar(password);
-  datos_actuales.password = salt;
-  if (foto_perfil.trim() !== "") datos_actuales.foto_perfil = foto_perfil;
-  if (name_user.trim() !== "") datos_actuales.name_user = name_user;
-  if (tipo.trim() !== "") datos_actuales.tipo = tipo;
-  if (email.trim() !== "") datos_actuales.email = email;
+  const { id: _, password: __, ...datos } = req.body;
+  const { password: ___, ...dataPersonal } = datUser.data();
+  const dataActualizada = actualizacionDatos(datos, dataPersonal);
+  if (password.trim() !== "") {
+    const salt = await funcionesBcrypt.encryptar(password);
+    dataActualizada.password = salt;
+  }
   try {
-    await db_firebase.collection("Users").doc(id).update(datos_actuales);
-    const usuario_actualizado = await db_firebase
-      .collection("Users")
-      .doc(id)
-      .get();
-    const data_usuario = usuario_actualizado.data();
-    const { password, ...datosActualizados } = data_usuario;
-    datosActualizados.id = id;
-    envioNotificaciones(datosActualizados, "updatePassword", email);
-    res.status(202).json(datosActualizados);
+    await db_firebase.collection("Users").doc(id).update(dataActualizada);
+    envioNotificaciones(dataActualizada, "updatePassword", email);
+    res.status(202).json(dataActualizada);
   } catch (error) {
     res.status(404).json({ msg: "Ocurrio un error" });
   }
@@ -253,7 +251,7 @@ export {
   obtenerIlustraciones,
   addUser,
   restablecerPassword,
-  actulizarPassword,
+  actulizarDatos,
   desctivar_user,
   cerrarSesion,
   eliminarUsuario,

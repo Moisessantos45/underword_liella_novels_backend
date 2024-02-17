@@ -5,14 +5,12 @@ import envioNotificaciones from "../helpers/notificacionesResend.js";
 
 const agregarCard = async (req, res) => {
   const { nombreClave, captiuloActive, volumen } = req.body;
-  // console.log(req.body)
-  const verificar = await db_firebase
+  const { empty } = await db_firebase
     .collection("Volumenes")
     .where("nombreClave", "==", nombreClave)
     .where("volumen", "==", String(volumen))
     .get();
-  if (!verificar.empty)
-    return res.status(403).json({ msg: "El volumen ya existe" });
+  if (!empty) return res.status(403).json({ msg: "El volumen ya existe" });
   const card_data = await db_firebase.collection("Volumenes").add(req.body);
   const cards = await db_firebase
     .collection("Volumenes")
@@ -34,13 +32,10 @@ const agregarCard = async (req, res) => {
       {
         id: cards.id,
         createdAt: createdAt,
+        clave: filtrar_novela[0].clave,
       },
       { merge: true }
     );
-    await db_firebase
-      .collection("Volumenes")
-      .doc(cards.id)
-      .update({ clave: filtrar_novela[0].clave });
     const cardSave = card;
     envioNotificaciones(req.body, "addCard", null);
     res.status(202).json(cardSave);
@@ -61,24 +56,21 @@ const obtenerCards = async (req, res) => {
 
 const actulizarCard = async (req, res) => {
   const { id } = req.body;
-  // console.log(clave, volumen)
   const cards = await db_firebase.collection("Volumenes").doc(id).get();
   if (!cards.exists) {
     return res.status(404).json({ msg: "Volumen no encontrado" });
   }
   const card = cards.data();
-  const {id:idReq,...datos} = req.body;
+  const { id: idReq, ...datos } = req.body;
   for (let prop in datos) {
-    if (datos[prop]) {
+    if (card[prop] !== datos[prop]) {
       card[prop] = datos[prop];
     }
   }
   try {
-    await db_firebase
-      .collection("Volumenes")
-      .doc(cards.id)
-      .update(card);
+    await db_firebase.collection("Volumenes").doc(cards.id).update(card);
     envioNotificaciones(card, "updateCard", null);
+    // console.log(card);
     res.status(202).json(card);
   } catch (error) {
     res.status(403).json({ msg: "Hubo un error al actulizar" });
