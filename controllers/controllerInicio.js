@@ -3,16 +3,12 @@ import obtener_informacion from "../helpers/obtener_data.js";
 
 const busqueda = async (generosArray, clave) => {
   let datos = [];
-  let snapshot = await db_firebase
+  let { docs, empty } = await db_firebase
     .collection("Novelas")
     .where("clave", "!=", clave)
     .get();
-  if (!snapshot.empty) {
-    snapshot.forEach((doc) => {
-      let data = doc.data();
-      data.id = doc.id;
-      datos.push(data);
-    });
+  if (!empty) {
+    datos = docs.map((doc) => ({ ...doc.data(), id: doc.id }));
   }
   const filter_geners = datos
     .filter((doc) => {
@@ -58,17 +54,14 @@ const obtenerNovelasInicio = async (req, res) => {
 
 const mostrarInfoNovela = async (req, res) => {
   const { clave } = req.params;
-  const data_novel = await db_firebase
-    .collection("Novelas")
-    .where("clave", "==", clave)
-    .get();
-  const capi_data = await db_firebase
-    .collection("Capitulos")
-    .where("clave", "==", clave)
-    .get();
-  const info = obtener_informacion(data_novel)[0];
-  const capi = obtener_informacion(capi_data);
+
   try {
+    const [data_novel, capi_data] = await Promise.all([
+      db_firebase.collection("Novelas").where("clave", "==", clave).get(),
+      db_firebase.collection("Capitulos").where("clave", "==", clave).get(),
+    ]);
+    const info = obtener_informacion(data_novel)[0];
+    const capi = obtener_informacion(capi_data);
     res.status(202).json({ info, capi });
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error" });

@@ -25,11 +25,11 @@ const extraerIlustraciones = (items) => {
       if (
         img == "imagen" ||
         (img == "backgroud" && item[img].startsWith("https://i.ibb.co"))
-      ) { 
+      ) {
         ilustraciones.push({ imagen: item[img] });
       }
     });
-  }); 
+  });
   return ilustraciones;
 };
 
@@ -82,18 +82,31 @@ const panel = async (req, res) => {
   if (!token) return res.status(404).json({ msg: "No se encontro token" });
   const { id } = Jwt.verify(token, process.env.JWT_SECRET);
   try {
-    const user = await db_firebase.collection("Users").doc(id).get();
-    let usersRef = await db_firebase.collection("Users").get();
+    const [user, usersRef, cardsRef, chapterRef, dataVisitas] =
+      await Promise.all([
+        db_firebase.collection("Users").doc(id).get(),
+        db_firebase.collection("Users").get(),
+        db_firebase.collection("Volumenes").get(),
+        db_firebase.collection("Capitulos").get(),
+        db_firebase.collection("Visitas").doc("oc37sCt6ELD0UOl07X5T").get(),
+      ]);
+
     const totalUsuarios = usersRef.docs.length;
-    let cardsRef = await db_firebase.collection("Volumenes").get();
-    let chapterRef = await db_firebase.collection("Capitulos").get();
-    const dataVisitas = await db_firebase
-      .collection("Visitas")
-      .doc("oc37sCt6ELD0UOl07X5T")
-      .get();
+
     let visistas_actuales = dataVisitas.data().visistas;
-    const ultimasCard = obtener_informacion(cardsRef);
-    const ultimosCapitulo = obtener_informacion(chapterRef);
+    const ultimasCard = obtener_informacion(cardsRef).map(
+      ({ clave, createdAt, id, nombreClave, volumen }) => ({
+        clave,
+        createdAt,
+        id,
+        nombreClave,
+        volumen,
+      })
+    );
+    const ultimosCapitulo = obtener_informacion(chapterRef).map(
+      ({ titulo, contenido, ...item }) => item
+    );
+
     let ultimasCards = ordenamiento(ultimasCard);
     let ultimosCapitulos = ordenamiento(ultimosCapitulo);
     const usuario_data = user.data();
