@@ -17,6 +17,22 @@ const actualizacionDatos = async (datos, card) => {
   return card;
 };
 
+const extraerIlustraciones = (items) => {
+  // console.log(items);
+  const ilustraciones = [];
+  items.forEach((item) => {
+    Object.keys(item).forEach((img) => {
+      if (
+        img == "imagen" ||
+        (img == "backgroud" && item[img].startsWith("https://i.ibb.co"))
+      ) { 
+        ilustraciones.push({ imagen: item[img] });
+      }
+    });
+  }); 
+  return ilustraciones;
+};
+
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
   const { docs, empty } = await db_firebase
@@ -46,6 +62,8 @@ const autenticar = async (req, res) => {
       .set({ token: token, activo: activo }, { merge: true });
     const usuario_data = docs[0].data();
     usuario_data.id = id;
+    usuario_data.token = token;
+    usuario_data.activo = activo;
     const { password, ...usuario } = usuario_data;
     envioNotificaciones(usuario, "auth", email);
     res.status(202).json(usuario);
@@ -104,9 +122,21 @@ const solicitar_users = async (req, res) => {
 };
 
 const obtenerIlustraciones = async (req, res) => {
-  const ilusNovelas = await InfoNovelas.find({}, "ilustraciones");
-  const ilustraciones = ilusNovelas.map((doc) => doc.ilustraciones);
-  res.json({ ilustraciones });
+  try {
+    const [volumenes, novelas] = await Promise.all([
+      db_firebase.collection("Volumenes").get(),
+      db_firebase.collection("Novelas").get(),
+    ]);
+    const volumenesData = volumenes.docs.map((item) => item.data());
+    const novelasData = novelas.docs.map((item) => item.data());
+    const ilustraciones = [
+      ...extraerIlustraciones(volumenesData),
+      ...extraerIlustraciones(novelasData),
+    ];
+    res.json(ilustraciones);
+  } catch (error) {
+    res.status(404).json({ msg: "ocurrio un error" });
+  }
 };
 
 const addUser = async (req, res) => {
