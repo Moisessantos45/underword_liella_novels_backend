@@ -26,14 +26,17 @@ const agregarNovela = async (req, res) => {
     const { id } = await db_firebase
       .collection("Novelas")
       .add({ ...req.body, clave: clave });
-    await db_firebase.collection("Novelas").doc(id).set(
-      {
-        id: id,
-        createdAt: createdAt,
-      },
-      { merge: true }
-    );
-    const novelaSave = await obtener_data_doc(id);
+    const [, novelaSave] = await Promise.all([
+      db_firebase.collection("Novelas").doc(id).set(
+        {
+          id: id,
+          createdAt: createdAt,
+        },
+        { merge: true }
+      ),
+      obtener_data_doc(id),
+    ]);
+
     envioNotificaciones(novelaSave, "addNovel", null);
     res.status(202).json(novelaSave);
   } catch (error) {

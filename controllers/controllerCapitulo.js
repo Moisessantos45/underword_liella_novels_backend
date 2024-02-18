@@ -14,11 +14,10 @@ const agregarCapitulos = async (req, res) => {
   const { capitulo: _, ...data } = req.body;
   data.capitulo = Number(capitulo);
   const data_chapters = await db_firebase.collection("Capitulos").add(data);
-  const chapter = await db_firebase
-    .collection("Capitulos")
-    .doc(data_chapters.id)
-    .get();
-  const novelas = await db_firebase.collection("Novelas").get();
+  const [chapter, novelas] = await Promise.all([
+    db_firebase.collection("Capitulos").doc(data_chapters.id).get(),
+    db_firebase.collection("Novelas").get(),
+  ]);
   const filtrar_novela = obtener_informacion(novelas).filter((item) => {
     return new RegExp(nombre, "i").test(item.titulo);
   });

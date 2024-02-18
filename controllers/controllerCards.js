@@ -12,11 +12,10 @@ const agregarCard = async (req, res) => {
     .get();
   if (!empty) return res.status(403).json({ msg: "El volumen ya existe" });
   const card_data = await db_firebase.collection("Volumenes").add(req.body);
-  const cards = await db_firebase
-    .collection("Volumenes")
-    .doc(card_data.id)
-    .get();
-  const data_novel = await db_firebase.collection("Novelas").get();
+  const [cards, data_novel] = await Promise.all([
+    db_firebase.collection("Volumenes").doc(card_data.id).get(),
+    db_firebase.collection("Novelas").get(),
+  ]);
   const novels = obtener_informacion(data_novel);
   const filtrar_novela = novels.filter((item) => {
     return new RegExp(nombreClave, "i").test(item.titulo);
