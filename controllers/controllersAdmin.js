@@ -152,6 +152,48 @@ const obtenerIlustraciones = async (req, res) => {
   }
 };
 
+const solicitarDatosSitioWeb = async (req, res) => {
+  try {
+    const datosSitioWeb = await db_firebase
+      .collection("InicioWebInfo")
+      .doc("U9CVBgb0fLi5quLbtARl")
+      .get();
+    if (!datosSitioWeb.exists)
+      return res.status(404).json({ msg: "No se encontro datos" });
+    res.status(202).json(datosSitioWeb.data());
+  } catch (error) {
+    res.status(404).json({ msg: "ocurrio un error" });
+  }
+};
+
+const actualizatDatosSitioWeb = async (req, res) => {
+  const { datos } = req.body;
+  try {
+    const datosSitioWeb = await db_firebase
+      .collection("InicioWebInfo")
+      .doc("U9CVBgb0fLi5quLbtARl")
+      .get();
+    if (!datosSitioWeb.exists)
+      return res.status(404).json({ msg: "No se encontro datos" });
+    const dataSitio = datosSitioWeb.data();
+    for (let prop in datos) {
+      if (dataSitio[prop] !== datos[prop]) {
+        if (prop == "activoReclutamiento") {
+          dataSitio[prop] = JSON.parse(datos[prop]);
+        }
+        dataSitio[prop] = datos[prop];
+      }
+    }
+    await db_firebase
+      .collection("InicioWebInfo")
+      .doc("U9CVBgb0fLi5quLbtARl")
+      .update(dataSitio);
+    res.status(202).json(dataSitio);
+  } catch (error) {
+    res.status(404).json({ msg: "ocurrio un error" });
+  }
+};
+
 const addUser = async (req, res) => {
   const { email, password, tipo, id, foto_perfil, name_user } = req.body;
   const token = "";
@@ -292,6 +334,8 @@ export {
   panel,
   solicitar_users,
   obtenerIlustraciones,
+  solicitarDatosSitioWeb,
+  actualizatDatosSitioWeb,
   addUser,
   restablecerPassword,
   actulizarDatos,

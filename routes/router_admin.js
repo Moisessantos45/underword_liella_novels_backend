@@ -10,6 +10,8 @@ import {
   restablecerPassword,
   solicitar_users,
   obtenerIlustraciones,
+  solicitarDatosSitioWeb,
+  actualizatDatosSitioWeb,
 } from "../controllers/controllersAdmin.js";
 import checkAuth from "../middleware/auth_session.js";
 
@@ -25,6 +27,8 @@ router.post("/olvide-password", restablecerPassword);
 router.put("/desctivar-user", desctivar_user);
 router.delete("/eliminar-user/:id", eliminarUsuario);
 router.get("/solicitud_ilustraciones", obtenerIlustraciones);
+router.get("/configuracion-sitio", solicitarDatosSitioWeb);
+router.put("/configuracion-sitio", actualizatDatosSitioWeb);
 router.post("/logout", cerrarSesion);
 
 export default router;
