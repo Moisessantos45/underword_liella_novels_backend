@@ -107,8 +107,8 @@ const panel = async (req, res) => {
       ({ titulo, contenido, ...item }) => item
     );
 
-    let ultimasCards = ordenamiento(ultimasCard);
-    let ultimosCapitulos = ordenamiento(ultimosCapitulo);
+    let ultimasCards = ordenamiento(ultimasCard).slice(0,10)
+    let ultimosCapitulos = ordenamiento(ultimosCapitulo).slice(0,10)
     const usuario_data = user.data();
     usuario_data.id = user.id;
     const { password, ...usuario } = usuario_data;

@@ -1,18 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import router from "./routes/router_admin.js";
-import routerNovels from "./routes/router_novelas.js";
-import routerCapitulo from "./routes/router_capitulo.js";
-import routerPaginas from "./routes/router_paginas.js";
-import routerCapitulos from "./routes/router_capitulos.js";
-import routerMega from "./routes/router_file_mega.js";
+import router from "./Routers/index.js";
 
 const app = express();
 app.use(express.json());
 dotenv.config();
 
 const dominiosPermitidos = [process.env.FRONTEDN_URL];
+
 const opciones = {
   origin: function (origin, callback) {
     if (dominiosPermitidos.indexOf(origin) !== -1) {
@@ -25,15 +21,17 @@ const opciones = {
 
 app.use(cors(opciones));
 
-app.use("/api/underword/underwordliellanovels", router);
-app.use("/api/underword/novelas", routerNovels);
-app.use("/api/underword/capitulo", routerCapitulo);
+// app.use("/api/underword/underwordliellanovels", router);
+// app.use("/api/underword/novelas", routerNovels);
+// app.use("/api/underword/capitulo", routerCapitulo);
 
-app.use("/api/underword/paginas", routerPaginas);
-app.use("/api/underword/pagina/capitulo", routerCapitulos);
+// app.use("/api/underword/paginas", routerPaginas);
+// app.use("/api/underword/pagina/capitulo", routerCapitulos);
 
-//router para uploads de archivos a mega
-app.use("/api/underword/mega", routerMega);
+// //router para uploads de archivos a mega
+// app.use("/api/underword/mega", routerMega);
+
+app.use("/api/underword/2.0", router);
 
 const PORT = process.env.PORT || 4000;
 
