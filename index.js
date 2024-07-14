@@ -11,7 +11,7 @@ const dominiosPermitidos = [process.env.FRONTEDN_URL];
 
 const opciones = {
   origin: function (origin, callback) {
-    if (dominiosPermitidos.indexOf(origin) !== -1) {
+    if (dominiosPermitidos.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {
       callback(null, false);
@@ -20,16 +20,6 @@ const opciones = {
 };
 
 app.use(cors(opciones));
-
-// app.use("/api/underword/underwordliellanovels", router);
-// app.use("/api/underword/novelas", routerNovels);
-// app.use("/api/underword/capitulo", routerCapitulo);
-
-// app.use("/api/underword/paginas", routerPaginas);
-// app.use("/api/underword/pagina/capitulo", routerCapitulos);
-
-// //router para uploads de archivos a mega
-// app.use("/api/underword/mega", routerMega);
 
 app.use("/api/underword/2.0", router);
 

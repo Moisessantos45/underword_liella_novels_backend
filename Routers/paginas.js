@@ -9,8 +9,8 @@ import {
 const router = express.Router();
 
 router.get("/", obtenerNovelasInicio);
-router.get("/novela/:clave", mostrarInfoNovela);
-router.get("/novela/volumen/:clave", getCard);
-router.get("/novela/recomendaciones/:clave", getRecomendaciones);
+router.get("/novela/:idNovel", mostrarInfoNovela);
+router.get("/novela/volumen/:idNovel", getCard);
+router.get("/novela/recomendaciones/:idNovel", getRecomendaciones);
 
 export default router;

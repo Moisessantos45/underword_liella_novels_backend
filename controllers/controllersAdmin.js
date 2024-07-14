@@ -35,56 +35,74 @@ const extraerIlustraciones = (items) => {
 
 const autenticar = async (req, res) => {
   const { email, password } = req.body;
-  const { docs, empty } = await db_firebase
-    .collection("Users")
-    .where("email", "==", email)
-    .get();
-  if (empty) {
-    return res.status(404).json({ msg: "usuario no encontrado" });
+
+  if (!email || !password) {
+    return res.status(400).json({ msg: "Email y Password son requeridos" });
   }
-  const verifyHasPassword = await funcionesBcrypt.verificarPassword(
-    password,
-    docs[0].data().password
-  );
-  if (!verifyHasPassword)
-    return res.status(403).json({ msg: "Password incorrecto" });
-  const id = docs[0].id;
-  const habilitado = docs[0].data();
-  if (!habilitado.acceso) {
-    return res.status(403).json({ msg: "No tienes acceso" });
-  }
-  let token = generarJWT(id);
-  const activo = true;
+
   try {
+    const userSnapshot = await db_firebase
+      .collection("Users")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (userSnapshot.empty) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+
+    const isPasswordValid = await funcionesBcrypt.verificarPassword(
+      password,
+      userData.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(403).json({ msg: "Password incorrecto" });
+    }
+
+    if (!userData.acceso) {
+      return res.status(403).json({ msg: "No tienes acceso" });
+    }
+
+    const id = userDoc.id;
+    if (userData.activo) {
+      await db_firebase
+        .collection("Users")
+        .doc(id)
+        .set({ token: null, activo: false }, { merge: true });
+    }
+
+    const token = generarJWT(id);
+    const activo = true;
+
     await db_firebase
       .collection("Users")
       .doc(id)
-      .set({ token: token, activo: activo }, { merge: true });
-    const usuario_data = docs[0].data();
-    usuario_data.id = id;
-    usuario_data.token = token;
-    usuario_data.activo = activo;
-    const { password, ...usuario } = usuario_data;
-    envioNotificaciones(usuario, "auth", email);
-    res.status(202).json(usuario);
+      .set({ token, activo }, { merge: true });
+
+    const { password: userPassword, ...userWithoutPassword } = userData;
+    userWithoutPassword.id = id;
+    userWithoutPassword.token = token;
+    userWithoutPassword.activo = activo;
+
+    envioNotificaciones(userWithoutPassword, "auth", email);
+
+    res.status(202).json(userWithoutPassword);
   } catch (error) {
-    await db_firebase
-      .collection("Users")
-      .doc(id)
-      .set({ token: "", activo: false }, { merge: true });
-    return res.status(400).json({ msg: error.code || "Usurio no Registrado" });
+    return res.status(500).json({ msg: "Error del servidor" });
   }
 };
 
 const panel = async (req, res) => {
-  const authHeader = req.get("Authorization");
-  const token = authHeader && authHeader.split(" ")[1];
-  if (!token) return res.status(404).json({ msg: "No se encontro token" });
-  const { id } = Jwt.verify(token, process.env.JWT_SECRET);
+  const { userId } = req.query;
+  console.log(userId);
   try {
     const [user, usersRef, cardsRef, chapterRef, dataVisitas] =
       await Promise.all([
-        db_firebase.collection("Users").doc(id).get(),
+        db_firebase.collection("Users").doc(userId).get(),
         db_firebase.collection("Users").get(),
         db_firebase.collection("Volumenes").get(),
         db_firebase.collection("Capitulos").get(),
@@ -107,8 +125,8 @@ const panel = async (req, res) => {
       ({ titulo, contenido, ...item }) => item
     );
 
-    let ultimasCards = ordenamiento(ultimasCard).slice(0,10)
-    let ultimosCapitulos = ordenamiento(ultimosCapitulo).slice(0,10)
+    let ultimasCards = ordenamiento(ultimasCard).slice(0, 10);
+    let ultimosCapitulos = ordenamiento(ultimosCapitulo).slice(0, 10);
     const usuario_data = user.data();
     usuario_data.id = user.id;
     const { password, ...usuario } = usuario_data;
@@ -147,6 +165,95 @@ const obtenerIlustraciones = async (req, res) => {
       ...extraerIlustraciones(novelasData),
     ];
     res.json(ilustraciones);
+  } catch (error) {
+    res.status(404).json({ msg: "ocurrio un error" });
+  }
+};
+
+const addUser = async (req, res) => {
+  const { email, password, tipo, id, foto_perfil, name_user } = req.body;
+  const token = "";
+  const activo = false;
+  const acceso = true;
+  try {
+    const { empty } = await db_firebase
+      .collection("Users")
+      .where("email", "==", email)
+      .get();
+
+    if (!empty) return res.status(403).json({ msg: "El usuario ya existe" });
+
+    const datUser = await db_firebase.collection("Users").doc(id).get();
+    const data_user = datUser.data();
+
+    if (data_user.tipo !== "administrador")
+      return res.status(403).json({ msg: "No tienes permisos" });
+
+    const salt = await funcionesBcrypt.encryptar(password);
+    await db_firebase.collection("Users").add({
+      email,
+      password: salt,
+      token,
+      activo,
+      tipo,
+      foto_perfil,
+      name_user,
+      acceso,
+    });
+    envioNotificaciones(
+      { cuenta: data_user.name_user, ...req.body },
+      "addUser",
+      data_user.email
+    );
+    res.status(202).json({ msg: "registrado correctamente" });
+  } catch (error) {
+    res.status(404).json({ msg: "No se ha podido guardar el usario" });
+  }
+};
+
+const restablecerPassword = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const datos = await db_firebase
+      .collection("Users")
+      .where("email", "==", email)
+      .get();
+    if (datos.empty) {
+      return res.status(403).json({ msg: "usuario no encontrado" });
+    }
+    const id = datos.docs[0].id;
+    await db_firebase
+      .collection("Users")
+      .doc(id)
+      .set({ token: "", acceso: true, activo: activo }, { merge: true });
+    res.status(202).json({ msg: "actualizacion exitosa" });
+  } catch (error) {
+    res.status(403).json({ msg: "ocurrio un error" });
+  }
+};
+
+const extensSession = async (req, res) => {
+  const email = req.query.email;
+
+  try {
+    const userSnapshot = await db_firebase
+      .collection("Users")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+	
+    if (userSnapshot.empty) {
+      return res.status(404).json({ msg: "Usuario no encontrado" });
+    }
+	
+	const id = userSnapshot.docs[0].id;
+    const generateToken = generarJWT(id);   
+
+    await db_firebase
+      .collection("Users")
+      .doc(id)
+      .set({ token: generateToken }, { merge: true });
+    res.status(202).json({ msg: "sesion extendida" });
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error" });
   }
@@ -194,80 +301,24 @@ const actualizatDatosSitioWeb = async (req, res) => {
   }
 };
 
-const addUser = async (req, res) => {
-  const { email, password, tipo, id, foto_perfil, name_user } = req.body;
-  const token = "";
-  const activo = false;
-  const acceso = true;
-  const { empty } = await db_firebase
-    .collection("Users")
-    .where("email", "==", email)
-    .get();
-  if (!empty) return res.status(403).json({ msg: "El usuario ya existe" });
-  try {
-    const datUser = await db_firebase.collection("Users").doc(id).get();
-    const data_user = datUser.data();
-    if (data_user.tipo !== "administrador")
-      return res.status(403).json({ msg: "No tienes permisos" });
-    const salt = await funcionesBcrypt.encryptar(password);
-    await db_firebase.collection("Users").add({
-      email,
-      password: salt,
-      token,
-      activo,
-      tipo,
-      foto_perfil,
-      name_user,
-      acceso,
-    });
-    envioNotificaciones(
-      { cuenta: data_user.name_user, ...req.body },
-      "addUser",
-      data_user.email
-    );
-    res.status(202).json({ msg: "registrado correctamente" });
-  } catch (error) {
-    res.status(404).json({ msg: "No se ha podido guardar el usario" });
-  }
-};
-
-const restablecerPassword = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const datos = await db_firebase
-      .collection("Users")
-      .where("email", "==", email)
-      .get();
-    if (datos.empty) {
-      return res.status(403).json({ msg: "usuario no encontrado" });
-    }
-    const id = datos.docs[0].id;
-    await db_firebase
-      .collection("Users")
-      .doc(id)
-      .set({ token: "", acceso: true, activo: activo }, { merge: true });
-    res.status(202).json({ msg: "actualizacion exitosa" });
-  } catch (error) {
-    res.status(403).json({ msg: "ocurrio un error" });
-  }
-};
-
 const actulizarDatos = async (req, res) => {
   const { email, password, id } = req.body;
-  // console.log(req.body)
-  const datUser = await db_firebase.collection("Users").doc(id).get();
-  if (!datUser.exists) {
-    return res.status(403).json({ msg: "usuario no encontrado" });
-  }
-  const { id: _, password: __, ...datos } = req.body;
-  const { password: ___, ...dataPersonal } = datUser.data();
-  const dataActualizada = actualizacionDatos(datos, dataPersonal);
-  if (password.trim() !== "") {
-    const salt = await funcionesBcrypt.encryptar(password);
-    dataActualizada.password = salt;
-  }
+
   try {
+    const datUser = await db_firebase.collection("Users").doc(id).get();
+    if (!datUser.exists) {
+      return res.status(403).json({ msg: "usuario no encontrado" });
+    }
+    const { id: _, password: __, ...datos } = req.body;
+    const { password: ___, ...dataPersonal } = datUser.data();
+    const dataActualizada = actualizacionDatos(datos, dataPersonal);
+    if (password.trim() !== "") {
+      const salt = await funcionesBcrypt.encryptar(password);
+      dataActualizada.password = salt;
+    }
+
     await db_firebase.collection("Users").doc(id).update(dataActualizada);
+
     envioNotificaciones(dataActualizada, "updatePassword", email);
     res.status(202).json(dataActualizada);
   } catch (error) {
@@ -275,21 +326,46 @@ const actulizarDatos = async (req, res) => {
   }
 };
 
+const changeStatusSite = async (req, res) => {
+  const status = req.query.status;
+  try {
+    const validStatus = ["true", "false"].find((item) => item === status);
+
+    if (!validStatus) {
+      return res.status(404).json({ msg: "status no valido" });
+    }
+
+    const datosSitioWeb = await db_firebase
+      .collection("InicioWebInfo")
+      .doc("U9CVBgb0fLi5quLbtARl")
+      .set({ isMaintenanceMode: JSON.parse(validStatus) }, { merge: true });
+
+    if (!datosSitioWeb.writeTime) {
+      return res.status(404).json({ msg: "No se encontro datos" });
+    }
+    res.status(404).json({ msg: "No se encontro datos" });
+  } catch (error) {
+    res.status(404).json({ msg: "ocurrio un error" });
+  }
+};
+
 const cerrarSesion = async (req, res) => {
   const { email } = req.body;
-  const datos = await db_firebase
-    .collection("Users")
-    .where("email", "==", email)
-    .get();
-  if (datos.empty) {
-    return res.status(404).json({ msg: "usuario no encontrado" });
-  }
-  const id = datos.docs[0].id;
   try {
+    const datos = await db_firebase
+      .collection("Users")
+      .where("email", "==", email)
+      .get();
+
+    if (datos.empty) {
+      return res.status(404).json({ msg: "usuario no encontrado" });
+    }
+
+    const id = datos.docs[0].id;
     await db_firebase
       .collection("Users")
       .doc(id)
-      .update({ activo: false, token: "" });
+      .set({ activo: false, token: "" }, { merge: true });
     res.status(202).json({ msg: "se ha cerrado sesion" });
   } catch (error) {
     res.status(404).json({ msg: "Ha ocurrido un error" });
@@ -298,15 +374,16 @@ const cerrarSesion = async (req, res) => {
 
 const desctivar_user = async (req, res) => {
   const { id, active } = req.body;
-  const user_data = await db_firebase.collection("Users").doc(id).get();
-  if (!user_data?.id) {
-    return res.status(403).json({ msg: "no se encontro usuario" });
-  }
-  const user = user_data.data();
-  user.acceso = active;
-  user.id = user_data.id;
-  const email = user.email;
   try {
+    const user_data = await db_firebase.collection("Users").doc(id).get();
+    if (!user_data?.id) {
+      return res.status(403).json({ msg: "no se encontro usuario" });
+    }
+    const user = user_data.data();
+    user.acceso = active;
+    user.id = user_data.id;
+    const email = user.email;
+
     await db_firebase
       .collection("Users")
       .doc(user_data.id)
@@ -334,10 +411,12 @@ export {
   panel,
   solicitar_users,
   obtenerIlustraciones,
-  solicitarDatosSitioWeb,
-  actualizatDatosSitioWeb,
   addUser,
   restablecerPassword,
+  extensSession,
+  solicitarDatosSitioWeb,
+  actualizatDatosSitioWeb,
+  changeStatusSite,
   actulizarDatos,
   desctivar_user,
   cerrarSesion,

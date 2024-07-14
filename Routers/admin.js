@@ -12,6 +12,8 @@ import {
   obtenerIlustraciones,
   solicitarDatosSitioWeb,
   actualizatDatosSitioWeb,
+  changeStatusSite,
+  extensSession,
 } from "../controllers/controllersAdmin.js";
 import checkAuth from "../middleware/auth_session.js";
 
@@ -29,6 +31,8 @@ router.delete("/eliminar-user/:id", eliminarUsuario);
 router.get("/solicitud_ilustraciones", obtenerIlustraciones);
 router.get("/configuracion-sitio", solicitarDatosSitioWeb);
 router.put("/configuracion-sitio", actualizatDatosSitioWeb);
+router.patch("/configuracion-sitio", changeStatusSite);
+router.patch("/extends-sesion", extensSession);
 router.post("/logout", cerrarSesion);
 
 export default router;

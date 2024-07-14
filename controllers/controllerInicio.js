@@ -1,11 +1,11 @@
 import db_firebase from "../firebase/auth_firebase.js";
 import obtener_informacion from "../helpers/obtener_data.js";
 
-const busqueda = async (generosArray, clave) => {
+const busqueda = async (generosArray, idNovel) => {
   let datos = [];
   let { docs, empty } = await db_firebase
     .collection("Novelas")
-    .where("clave", "!=", clave)
+    .where("id", "!=", idNovel)
     .get();
   if (!empty) {
     datos = docs.map((doc) => ({ ...doc.data(), id: doc.id }));
@@ -53,12 +53,12 @@ const obtenerNovelasInicio = async (req, res) => {
 };
 
 const mostrarInfoNovela = async (req, res) => {
-  const { clave } = req.params;
+  const { idNovel } = req.params;
 
   try {
     const [data_novel, capi_data] = await Promise.all([
-      db_firebase.collection("Novelas").where("clave", "==", clave).get(),
-      db_firebase.collection("Capitulos").where("clave", "==", clave).get(),
+      db_firebase.collection("Novelas").where("id", "==", idNovel).get(),
+      db_firebase.collection("Capitulos").where("idNovel", "==", idNovel).get(),
     ]);
     const info = obtener_informacion(data_novel)[0];
     const capi = obtener_informacion(capi_data);
@@ -69,11 +69,11 @@ const mostrarInfoNovela = async (req, res) => {
 };
 
 const getCard = async (req, res) => {
-  const { clave } = req.params;
+  const { idNovel } = req.params;
   try {
     const card_data = await db_firebase
       .collection("Volumenes")
-      .where("clave", "==", clave)
+      .where("idNovel", "==", idNovel)
       .get();
     const card = obtener_informacion(card_data).reverse();
     res.status(202).json(card);
@@ -83,17 +83,19 @@ const getCard = async (req, res) => {
 };
 
 const getRecomendaciones = async (req, res) => {
-  const { clave } = req.params;
+  const { idNovel } = req.params;
   try {
     const data_novel = await db_firebase
       .collection("Novelas")
-      .where("clave", "==", clave)
+      .where("id", "==", idNovel)
       .get();
+
     if (data_novel.empty)
       return res.status(400).json({ msg: "No existe la novela" });
+
     const info = obtener_informacion(data_novel)[0];
     const generosSearch = info.generos.split(",");
-    const recomendaciones = await busqueda(generosSearch, clave);
+    const recomendaciones = await busqueda(generosSearch, idNovel);
     res.status(202).json(recomendaciones);
   } catch (error) {
     res.status(404).json({ msg: "Error de conexion" });

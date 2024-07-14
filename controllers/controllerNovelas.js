@@ -11,34 +11,32 @@ const obtener_data_doc = async (id) => {
 
 const agregarNovela = async (req, res) => {
   const { titulo } = req.body;
-  // console.log(req.body)
+
   if (!titulo) {
     return res.status(403).json({ msg: "No se enviaron datos" });
   }
-  const { empty } = await db_firebase
-    .collection("Volumenes")
-    .where("titulo", "==", titulo)
-    .get();
-  if (!empty) return res.status(403).json({ msg: "La novela ya existe" });
-  let clave = titulo.split(" ").slice(0, 3).join("_").toLowerCase();
-  const createdAt = `${obtenerFecha()}-${obtenerHora()}`;
   try {
-    const { id } = await db_firebase
-      .collection("Novelas")
-      .add({ ...req.body, clave: clave });
-    const [, novelaSave] = await Promise.all([
-      db_firebase.collection("Novelas").doc(id).set(
-        {
-          id: id,
-          createdAt: createdAt,
-        },
-        { merge: true }
-      ),
-      obtener_data_doc(id),
-    ]);
+    const { empty } = await db_firebase
+      .collection("Volumenes")
+      .where("titulo", "==", titulo)
+      .limit(1)
+      .get();
+    if (!empty) return res.status(403).json({ msg: "La novela ya existe" });
+
+    const createdAt = `${obtenerFecha()}-${obtenerHora()}`;
+
+    const { id } = await db_firebase.collection("Novelas").add(req.body);
+
+    await db_firebase.collection("Novelas").doc(id).set(
+      {
+        id: id,
+        createdAt: createdAt,
+      },
+      { merge: true }
+    );
 
     envioNotificaciones(novelaSave, "addNovel", null);
-    res.status(202).json(novelaSave);
+    res.status(202).json({ msg: "se agrego correctamente" });
   } catch (error) {
     res.status(403).json({ msg: "no se logro agregar" });
   }
@@ -56,18 +54,19 @@ const obtenerNovelas = async (req, res) => {
 
 const actulizarNovela = async (req, res) => {
   const { id } = req.body;
-  const dataNovel = await db_firebase.collection("Novelas").doc(id).get();
-  if (!dataNovel.exists) {
-    return res.status(404).json({ msg: "La novela no existe" });
-  }
-  let novela = dataNovel.data();
-  const { id: idReq, ...datos } = req.body;
-  for (let prop in datos) {
-    if (novela[prop] !== datos[prop]) {
-      novela[prop] = datos[prop];
-    }
-  }
   try {
+    const dataNovel = await db_firebase.collection("Novelas").doc(id).get();
+    if (!dataNovel.exists) {
+      return res.status(404).json({ msg: "La novela no existe" });
+    }
+    let novela = dataNovel.data();
+    const { id: idReq, ...datos } = req.body;
+    for (let prop in datos) {
+      if (novela[prop] !== datos[prop]) {
+        novela[prop] = datos[prop];
+      }
+    }
+
     await db_firebase.collection("Novelas").doc(dataNovel.id).update(novela);
     envioNotificaciones(novela, "updateNovel", null);
     res.status(202).json(novela);
@@ -88,26 +87,31 @@ const eliminarNovela = async (req, res) => {
 };
 
 const inabilitarNovela = async (req, res) => {
-  const { clave, active } = req.body;
-  const { docs } = await db_firebase
-    .collection("Novelas")
-    .where("clave", "==", clave)
-    .get();
-  const novela = docs.map((item) => ({ ...item.data(), id: item.id }));
-  if (novela.length < 0) {
-    return res.status(403).json({ msg: "no se encontro la novela" });
-  }
-  novela[0].activo = active;
+  const { id, active } = req.body;
+
   try {
+    const novelaSnapshot = await db_firebase
+      .collection("Novelas")
+      .where("id", "==", id)
+      .limit(1)
+      .get();
+
+    if (novelaSnapshot.empty) {
+      return res.status(403).json({ msg: "No se encontró la novela" });
+    }
+
+    const novelaDoc = novelaSnapshot.docs[0].data();
+    const idNovel = novelaSnapshot.docs[0].id;
     await db_firebase
       .collection("Novelas")
-      .doc(novela[0].id)
-      .update({ activo: active });
-    const novelaActualizada = novela;
-    envioNotificaciones(novelaActualizada, "inahilitarNovel", null);
-    res.status(202).json(novelaActualizada);
+      .doc(idNovel)
+      .set({ activo: JSON.parse(active) });
+
+    envioNotificaciones(novelaDoc, "inhabilitarNovela", null);
+
+    res.status(202).json({ msg: "Novela inhabilitada correctamente" });
   } catch (error) {
-    res.status(404).json({ msg: error });
+    res.status(500).json({ msg: "Ocurrió un error al inhabilitar la novela" });
   }
 };
 

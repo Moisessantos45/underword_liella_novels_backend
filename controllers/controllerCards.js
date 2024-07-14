@@ -4,42 +4,35 @@ import obtener_informacion from "../helpers/obtener_data.js";
 import envioNotificaciones from "../helpers/notificacionesResend.js";
 
 const agregarCard = async (req, res) => {
-  const { nombreClave, captiuloActive, volumen } = req.body;
-  const { empty } = await db_firebase
-    .collection("Volumenes")
-    .where("nombreClave", "==", nombreClave)
-    .where("volumen", "==", String(volumen))
-    .get();
-  if (!empty) return res.status(403).json({ msg: "El volumen ya existe" });
-  const card_data = await db_firebase.collection("Volumenes").add(req.body);
-  const [cards, data_novel] = await Promise.all([
-    db_firebase.collection("Volumenes").doc(card_data.id).get(),
-    db_firebase.collection("Novelas").get(),
-  ]);
-  const novels = obtener_informacion(data_novel);
-  const filtrar_novela = novels.filter((item) => {
-    return new RegExp(nombreClave, "i").test(item.titulo);
-  });
-  const card = cards.data();
-  if (!JSON.parse(captiuloActive)) {
-    card.capitulo = "";
-  }
-  card.clave = filtrar_novela[0].clave;
-  const createdAt = `${obtenerFecha()}-${obtenerHora()}`;
+  const { idNovel, volumen } = req.body;
   try {
-    await db_firebase.collection("Volumenes").doc(cards.id).set(
-      {
-        id: cards.id,
-        createdAt: createdAt,
-        clave: filtrar_novela[0].clave,
-      },
-      { merge: true }
-    );
-    const cardSave = card;
+    await db_firebase.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(
+        db_firebase
+          .collection("Volumenes")
+          .where("idNovel", "==", idNovel)
+          .where("volumen", "==", String(volumen))
+          .limit(1)
+      );
+
+      if (!snapshot.empty) {
+        throw new Error("El volumen ya existe");
+      }
+
+      const cardData = {
+        ...req.body,
+        createdAt: `${obtenerFecha()}-${obtenerHora()}`,
+      };
+      const cardRef = await db_firebase.collection("Volumenes").add(cardData);
+
+      await transaction.set(cardRef, { id: cardRef.id }, { merge: true });
+    });
+
     envioNotificaciones(req.body, "addCard", null);
-    res.status(202).json(cardSave);
+
+    res.status(202).json({ msg: "Se agregó correctamente" });
   } catch (error) {
-    res.status(403).json({ msg: "ocurrio un erorr" });
+    res.status(403).json({ msg: "Ocurrió un error" });
   }
 };
 
@@ -55,21 +48,22 @@ const obtenerCards = async (req, res) => {
 
 const actulizarCard = async (req, res) => {
   const { id } = req.body;
-  const cards = await db_firebase.collection("Volumenes").doc(id).get();
-  if (!cards.exists) {
-    return res.status(404).json({ msg: "Volumen no encontrado" });
-  }
-  const card = cards.data();
-  const { id: idReq, ...datos } = req.body;
-  for (let prop in datos) {
-    if (card[prop] !== datos[prop]) {
-      card[prop] = datos[prop];
-    }
-  }
   try {
+    const cards = await db_firebase.collection("Volumenes").doc(id).get();
+
+    if (!cards.exists) {
+      return res.status(404).json({ msg: "Volumen no encontrado" });
+    }
+
+    const card = cards.data();
+    const { id: idReq, ...datos } = req.body;
+    for (let prop in datos) {
+      if (card[prop] !== datos[prop]) {
+        card[prop] = datos[prop];
+      }
+    }
     await db_firebase.collection("Volumenes").doc(cards.id).update(card);
     envioNotificaciones(card, "updateCard", null);
-    // console.log(card);
     res.status(202).json(card);
   } catch (error) {
     res.status(403).json({ msg: "Hubo un error al actulizar" });
@@ -78,7 +72,6 @@ const actulizarCard = async (req, res) => {
 
 const eliminarCard = async (req, res) => {
   const { id } = req.params;
-  // console.log(id)
   try {
     await db_firebase.collection("Volumenes").doc(id).delete();
     envioNotificaciones({ id: id }, "deleteCard", null);

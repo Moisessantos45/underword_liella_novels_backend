@@ -38,18 +38,19 @@ const subirFileMega = async (req, res) => {
     }
     const fileName = path.basename(req.files[0].path);
     const fileDirecccion = req.files[0].path;
-    console.log(fileDirecccion);
+
     const file = await storage.upload(
       { name: fileName, size: req.files[0].size },
       fs.createReadStream(req.files[0].path)
     ).complete;
+
     const link = await file.link();
+
     res.status(200).json(link);
     fs.unlink(fileDirecccion, (error) => {
       if (error) console.log("error al eliminar el archivo", fileName);
     });
   } catch (error) {
-    console.log(error);
     res.status(500).json({ msg: "Ocurrio un error al subir el archivo" });
     eliminarFiles(res);
   }
