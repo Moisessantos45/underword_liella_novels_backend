@@ -75,7 +75,7 @@ const autenticar = async (req, res) => {
         .set({ token: null, activo: false }, { merge: true });
     }
 
-    const token = generarJWT(id);
+    const token = generarJWT(id, "15m");
     const activo = true;
 
     await db_firebase
@@ -96,20 +96,13 @@ const autenticar = async (req, res) => {
   }
 };
 
-const panel = async (req, res) => {
-  const { userId } = req.query;
-  console.log(userId);
+const panel = async (_req, res) => {
   try {
-    const [user, usersRef, cardsRef, chapterRef, dataVisitas] =
-      await Promise.all([
-        db_firebase.collection("Users").doc(userId).get(),
-        db_firebase.collection("Users").get(),
-        db_firebase.collection("Volumenes").get(),
-        db_firebase.collection("Capitulos").get(),
-        db_firebase.collection("Visitas").doc("oc37sCt6ELD0UOl07X5T").get(),
-      ]);
-
-    const totalUsuarios = usersRef.docs.length;
+    const [cardsRef, chapterRef, dataVisitas] = await Promise.all([
+      db_firebase.collection("Volumenes").get(),
+      db_firebase.collection("Capitulos").get(),
+      db_firebase.collection("Visitas").doc("oc37sCt6ELD0UOl07X5T").get(),
+    ]);
 
     let visistas_actuales = dataVisitas.data().visistas;
     const ultimasCard = obtener_informacion(cardsRef).map(
@@ -127,12 +120,8 @@ const panel = async (req, res) => {
 
     let ultimasCards = ordenamiento(ultimasCard).slice(0, 10);
     let ultimosCapitulos = ordenamiento(ultimosCapitulo).slice(0, 10);
-    const usuario_data = user.data();
-    usuario_data.id = user.id;
-    const { password, ...usuario } = usuario_data;
+
     res.json({
-      usuario,
-      totalUsuarios,
       ultimosCapitulos,
       ultimasCards,
       visistas_actuales,
@@ -241,19 +230,19 @@ const extensSession = async (req, res) => {
       .where("email", "==", email)
       .limit(1)
       .get();
-	
+
     if (userSnapshot.empty) {
       return res.status(404).json({ msg: "Usuario no encontrado" });
     }
-	
-	const id = userSnapshot.docs[0].id;
-    const generateToken = generarJWT(id);   
+
+    const id = userSnapshot.docs[0].id;
+    const generateToken = generarJWT(id, "20m");
 
     await db_firebase
       .collection("Users")
       .doc(id)
       .set({ token: generateToken }, { merge: true });
-    res.status(202).json({ msg: "sesion extendida" });
+    res.status(202).json(generateToken);
   } catch (error) {
     res.status(404).json({ msg: "ocurrio un error" });
   }

@@ -48,25 +48,52 @@ const obtenerCards = async (req, res) => {
 
 const actulizarCard = async (req, res) => {
   const { id } = req.body;
-  try {
-    const cards = await db_firebase.collection("Volumenes").doc(id).get();
+  console.log(req.body);
 
-    if (!cards.exists) {
+  try {
+    const cardRef = db_firebase.collection("Volumenes").doc(id);
+    const cardDoc = await cardRef.get();
+
+    if (!cardDoc.exists) {
       return res.status(404).json({ msg: "Volumen no encontrado" });
     }
 
-    const card = cards.data();
+    const card = cardDoc.data();
     const { id: idReq, ...datos } = req.body;
+    const updates = {};
+
     for (let prop in datos) {
-      if (card[prop] !== datos[prop]) {
-        card[prop] = datos[prop];
+      if (prop === "links") {
+        if (
+          !Array.isArray(card.links) ||
+          card.links.length !== datos.links.length
+        ) {
+          updates.links = datos.links;
+        } else {
+          updates.links = datos.links.map((newLink, index) => {
+            const cardLink = card.links[index];
+            if (JSON.stringify(cardLink) !== JSON.stringify(newLink)) {
+              return newLink;
+            }
+            return cardLink;
+          });
+        }
+      } else if (JSON.stringify(card[prop]) !== JSON.stringify(datos[prop])) {
+        updates[prop] = datos[prop];
       }
     }
-    await db_firebase.collection("Volumenes").doc(cards.id).update(card);
-    envioNotificaciones(card, "updateCard", null);
-    res.status(202).json(card);
+
+    if (Object.keys(updates).length > 0) {
+      await cardRef.update(updates);
+      const updatedCard = { ...card, ...updates };
+      envioNotificaciones(updatedCard, "updateCard", null);
+      res.status(200).json(updatedCard);
+    } else {
+      res.status(200).json({ msg: "No se realizaron cambios" });
+    }
   } catch (error) {
-    res.status(403).json({ msg: "Hubo un error al actulizar" });
+    console.error("Error al actualizar:", error);
+    res.status(500).json({ msg: "Hubo un error al actualizar" });
   }
 };
 
